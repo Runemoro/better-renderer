@@ -1,6 +1,9 @@
 plugins {
     id 'java'
+//    id "com.github.johnrengelman.shadow" version "6.1.0"
 }
+
+//import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 repositories {
     maven { url = 'https://repo.runelite.net' }
@@ -46,7 +49,7 @@ tasks.withType(JavaCompile) {
 }
 
 try {
-    shadowJar {
+    runelitePluginHubPackage {
         minimize()
     }
 } catch (MissingMethodException ignored) {
