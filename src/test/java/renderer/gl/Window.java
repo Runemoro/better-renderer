@@ -4,21 +4,15 @@ import it.unimi.dsi.fastutil.ints.*;
 import org.joml.Vector2d;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFWDropCallback;
-import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
-import org.lwjgl.system.MemoryStack;
 
-import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
-import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.stb.STBImage.stbi_image_free;
-import static org.lwjgl.stb.STBImage.stbi_load_from_memory;
 
 public class Window {
     private long handle = 0;
@@ -281,31 +275,6 @@ public class Window {
     public void refresh() {
         if (refreshAction != null) {
             refreshAction.run();
-        }
-    }
-
-    public void setIcon(byte[] bytes) {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer buffer = BufferUtils.createByteBuffer(bytes.length);
-            buffer.put(bytes);
-            buffer.flip();
-
-            IntBuffer width = stack.mallocInt(1);
-            IntBuffer height = stack.mallocInt(1);
-            IntBuffer components = stack.mallocInt(1);
-
-            ByteBuffer image = stbi_load_from_memory(buffer, width, height, components, 4);
-
-            if (components.get() != 4) {
-                throw new IllegalArgumentException("Icon not RGBA");
-            }
-
-            GLFWImage.Buffer icons = GLFWImage.create(1);
-            icons.put(GLFWImage.create().set(width.get(), height.get(), image));
-            icons.position(0);
-            glfwSetWindowIcon(handle, icons);
-
-            stbi_image_free(image);
         }
     }
 
