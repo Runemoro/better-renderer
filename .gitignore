@@ -1,5 +1,5 @@
-.gradle
-.idea
-out
-cache
-xtea.json
+/.gradle
+/.idea
+/out
+/cache
+/xtea.json
