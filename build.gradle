@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    maven { url = 'https://repo.runelite.net' }
+    mavenCentral()
+}
+
+def runeLiteVersion = '1.6.30'
+sourceCompatibility = 8
+
+dependencies {
+    implementation group: 'net.runelite', name:'client', version: runeLiteVersion
+
+    compileOnly 'org.projectlombok:lombok:1.18.4'
+    annotationProcessor 'org.projectlombok:lombok:1.18.4'
+
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.slf4j:slf4j-simple:1.7.12'
+    testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion, {
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+    }
+
+    implementation "org.lwjgl:lwjgl:3.2.3"
+    implementation "org.lwjgl:lwjgl:3.2.3:natives-windows"
+    implementation "org.lwjgl:lwjgl-opengl:3.2.3"
+    implementation "org.lwjgl:lwjgl-opengl:3.2.3:natives-windows"
+    implementation "org.lwjgl:lwjgl-glfw:3.2.3"
+    implementation "org.lwjgl:lwjgl-glfw:3.2.3:natives-windows"
+    implementation "org.lwjgl:lwjgl-stb:3.2.3"
+    implementation "org.lwjgl:lwjgl-stb:3.2.3:natives-windows"
+    implementation 'org.lwjgl:lwjgl-jawt:3.2.3'
+    implementation "it.unimi.dsi:fastutil:8.3.0"
+    implementation "org.joml:joml:1.9.24"
+    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'com.google.guava:guava:29.0-jre'
+    implementation 'org.apache.commons:commons-compress:1.20'
+}
+
+group = 'betterrenderer'
+version = '1.0'
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}

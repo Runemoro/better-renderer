@@ -1,0 +1,127 @@
+package renderer.gl;
+
+import org.joml.Vector3d;
+import renderer.renderer.BufferBuilder;
+
+import static org.lwjgl.opengl.GL11C.*;
+import static org.lwjgl.opengl.GL15C.GL_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15C.glBindBuffer;
+import static org.lwjgl.opengl.GL20C.*;
+import static org.lwjgl.opengl.GL30C.glVertexAttribIPointer;
+
+public class GlProgram implements AutoCloseable {
+    private final int program;
+    private final int vs;
+    private final int fs;
+    private boolean closed = false;
+    private final int positionAttributeLocation;
+    private final int normalAttributeLocation;
+    private final int colorAttributeLocation;
+    private final int priorityAttributeLocation;
+    private final int transformUniformLocation;
+    private final int projectionUniformLocation;
+    private final int viewDistanceUniformLocation;
+    private final int fogColorUniformLocation;
+    private final int cameraPositionUniformLocation;
+    private final int lightPositionUniformLocation;
+    private final int gammaUniformLocation;
+
+    public GlProgram(String vertexShader, String fragmentShader) {
+        program = glCreateProgram();
+        glAttachShader(program, vs = createShader(vertexShader, GL_VERTEX_SHADER));
+        glAttachShader(program, fs = createShader(fragmentShader, GL_FRAGMENT_SHADER));
+
+        glLinkProgram(program);
+        if (glGetProgrami(program, GL_LINK_STATUS) == GL_FALSE) {
+            throw new IllegalStateException("program link failed");
+        }
+
+        transformUniformLocation = getUniformLocation("transform");
+        projectionUniformLocation = getUniformLocation("projection");
+        lightPositionUniformLocation = getUniformLocation("light_position");
+        viewDistanceUniformLocation = getUniformLocation("view_distance");
+        fogColorUniformLocation = getUniformLocation("fog_color");
+        cameraPositionUniformLocation = getUniformLocation("camera_position");
+        gammaUniformLocation = getUniformLocation("gamma");
+        positionAttributeLocation = getAttributeLocation("position");
+//        modelPositionAttributeLocation = getAttributeLocation("model_position");
+        normalAttributeLocation = getAttributeLocation("normal");
+        colorAttributeLocation = getAttributeLocation("color");
+        priorityAttributeLocation = getAttributeLocation("priority");
+    }
+
+    private static int createShader(String source, int type) {
+        int id = glCreateShader(type);
+        glShaderSource(id, source);
+        glCompileShader(id);
+
+        if (glGetShaderi(id, GL_COMPILE_STATUS) == GL_FALSE) {
+            System.err.println(glGetShaderInfoLog(id));
+            throw new IllegalStateException("shader compilation failed");
+        }
+
+        return id;
+    }
+
+    public int getAttributeLocation(String name) {
+        int location = glGetAttribLocation(program, name);
+
+        if (location == -1) {
+            throw new IllegalArgumentException("no attribute '" + name + "'");
+        }
+
+        return location;
+    }
+
+    public int getUniformLocation(String name) {
+        int location = glGetUniformLocation(program, name);
+
+        if (location == -1) {
+            throw new IllegalArgumentException("no attribute '" + name + "'");
+        }
+
+        return location;
+    }
+
+    public void render(VertexBuffer vertexBuffer) {
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.id);
+        glVertexAttribPointer(positionAttributeLocation, 3, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 0);
+        glVertexAttribPointer(normalAttributeLocation, 3, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 12);
+        glVertexAttribIPointer(colorAttributeLocation, 1, GL_INT, BufferBuilder.VERTEX_SIZE, 24);
+        glVertexAttribPointer(priorityAttributeLocation, 1, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 28);
+        glDrawArrays(GL_TRIANGLES, 0, vertexBuffer.getVertexCount());
+    }
+
+    public void enable(float[] transform, float[] projection, float[] light, float viewDistance, Vector3d fogColor, float[] position, float gamma) {
+        glUseProgram(program);
+        glUniformMatrix4fv(transformUniformLocation, false, transform);
+        glUniformMatrix4fv(projectionUniformLocation, false, projection);
+        glUniform3fv(lightPositionUniformLocation, light);
+        glUniform1f(viewDistanceUniformLocation, viewDistance);
+        glUniform3f(fogColorUniformLocation, (float) fogColor.x, (float) fogColor.y, (float) fogColor.z);
+        glUniform3fv(cameraPositionUniformLocation, position);
+        glUniform1f(gammaUniformLocation, gamma);
+        glEnableVertexAttribArray(positionAttributeLocation);
+        glEnableVertexAttribArray(normalAttributeLocation);
+        glEnableVertexAttribArray(colorAttributeLocation);
+        glEnableVertexAttribArray(priorityAttributeLocation);
+    }
+
+    public void disable() {
+        glDisableVertexAttribArray(positionAttributeLocation);
+        glDisableVertexAttribArray(normalAttributeLocation);
+        glDisableVertexAttribArray(colorAttributeLocation);
+        glDisableVertexAttribArray(priorityAttributeLocation);
+        glUseProgram(0);
+    }
+
+    @Override
+    public void close() {
+        if (!closed) {
+            closed = true;
+            glDeleteProgram(program);
+            glDeleteShader(vs);
+            glDeleteShader(fs);
+        }
+    }
+}
