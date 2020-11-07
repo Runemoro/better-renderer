@@ -15,14 +15,22 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Random;
 
 public class GameCache {
     public static final int REVISION = 192;
     public static final int ARCHIVE_COUNT = 21;
+    public static final int[] WORLDS = {
+            306, 307, 313, 315, 319, 320, 323, 324, 331, 332, 338, 339, 340, 347, 348, 355, 356, 357, 374, 378, 418, 419, 420,
+            421, 422, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 443, 444, 445, 446, 301, 305, 314, 321,
+            322, 329, 330, 337, 345, 346, 353, 354, 361, 362, 369, 370, 377, 385, 386, 393, 394, 400, 415, 416, 417, 467, 468,
+            469, 470, 471, 472, 473, 474, 475, 476, 477, 491, 492, 493, 494, 495, 496, 401, 402, 403, 404, 409, 410, 411
+    };
+
     private final Int2ObjectMap<Archive> archives = new FastIntMap<>();
 
     public void init() throws IOException {
-        Socket socket = new Socket("oldschool2.runescape.com", 43594);
+        Socket socket = new Socket(getWorld(), 43594);
         OutputStream out = socket.getOutputStream();
         InputStream in = socket.getInputStream();
         socket.setSoTimeout(1000000000);
@@ -94,5 +102,9 @@ public class GameCache {
 
     public byte[] get(int archive, int group, int file) {
         return archive(archive).group(group).file(file);
+    }
+
+    private static String getWorld() {
+        return "oldschool" + (WORLDS[new Random().nextInt(WORLDS.length)] - 300) + ".runescape.com";
     }
 }
