@@ -46,14 +46,16 @@ tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
 
-//shadowJar {
-//    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'module-info.class')
-//}
-
 try {
     runelitePluginHubPackage {
         minimize()
-        exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'module-info.class')
+        exclude(
+                'META-INF/INDEX.LIST',
+                'META-INF/*.SF',
+                'META-INF/*.DSA',
+                'META-INF/*.RSA',
+                'module-info.class'
+        )
     }
 } catch (MissingMethodException ignored) {
     // ShadowJar plugin missing
