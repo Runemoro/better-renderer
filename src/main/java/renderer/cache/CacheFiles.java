@@ -1,5 +1,7 @@
 package renderer.cache;
 
+import net.runelite.client.RuneLite;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -9,7 +11,7 @@ import java.nio.file.Paths;
 public final class CacheFiles {
     public static byte[] read(int archive, int group) {
         try {
-            Path path = Paths.get("cache/" + archive + "/" + group);
+            Path path = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/cache/" + archive + "/" + group);
 
             if (!Files.exists(path)) {
                 return null;
@@ -23,7 +25,7 @@ public final class CacheFiles {
 
     public static void write(int archive, int group, byte[] data) {
         try {
-            Path path = Paths.get("cache/" + archive + "/" + group);
+            Path path = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/cache/" + archive + "/" + group);
             Files.createDirectories(path.getParent());
             Files.write(path, data);
         } catch (IOException e) {

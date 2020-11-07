@@ -6,6 +6,7 @@ import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.hooks.DrawCallbacks;
+import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
@@ -33,6 +34,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
@@ -103,18 +105,23 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
         // Download the cache
         try {
-            Files.write(Paths.get("xtea.json"), Util.readAllBytes(new URL(XTEA_LOCATION).openStream()));
+            Path xteaPath = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/xtea.json");
+            Files.createDirectories(xteaPath.getParent());
+            Files.write(xteaPath, Util.readAllBytes(new URL(XTEA_LOCATION).openStream()));
             CacheSystem.CACHE.init();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
         clientThread.invoke(() -> {
-            try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            if (client.getGameState() == GameState.LOGIN_SCREEN) {
+                try {
+                    Thread.sleep(1000); // TODO: figure out why this is needed
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
+
             client.setDrawCallbacks(this);
             client.setGpu(true);
             client.resizeCanvas();

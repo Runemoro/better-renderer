@@ -4,8 +4,8 @@ plugins {
 }
 
 repositories {
-    maven { url = 'https://repo.runelite.net' }
     mavenCentral()
+    maven { url = 'https://repo.runelite.net' }
 }
 
 def runeLiteVersion = '1.6.30'
@@ -38,8 +38,6 @@ dependencies {
     implementation 'org.lwjgl:lwjgl-jawt:3.2.3'
     implementation "it.unimi.dsi:fastutil:8.3.0"
     implementation "org.joml:joml:1.9.24"
-//    implementation 'com.google.code.gson:gson:2.8.6'
-//    implementation 'com.google.guava:guava:29.0-jre'
     implementation 'org.apache.commons:commons-compress:1.20'
 }
 

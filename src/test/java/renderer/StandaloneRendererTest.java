@@ -1,5 +1,6 @@
 package renderer;
 
+import net.runelite.client.RuneLite;
 import renderer.gl.*;
 import org.joml.Matrix4d;
 import org.joml.Quaterniond;
@@ -12,6 +13,9 @@ import renderer.util.Util;
 import renderer.world.World;
 
 import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 import static org.lwjgl.opengl.GL11.*;
@@ -19,6 +23,7 @@ import static org.lwjgl.opengl.GL11C.glGetError;
 import static org.lwjgl.opengl.GL13.GL_MULTISAMPLE;
 
 public class StandaloneRendererTest {
+    private static final String XTEA_LOCATION = "https://gist.githubusercontent.com/Runemoro/d68a388aeb35ad432adf8af027eae832/raw/xtea.json";
     private static final double FOV = 0.5;
     public static final double CROSSHAIR_SIZE = 50;
     public static final double CROSSHAIR_THICKNESS = 5;
@@ -282,8 +287,11 @@ public class StandaloneRendererTest {
         }
     }
 
-    public static void main(String[] args) {
-        CacheSystem.CACHE.initLocal();
+    public static void main(String[] args) throws Exception {
+        Path xteaPath = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/xtea.json");
+        Files.createDirectories(xteaPath.getParent());
+        Files.write(xteaPath, Util.readAllBytes(new URL(XTEA_LOCATION).openStream()));
+        CacheSystem.CACHE.init();
         new StandaloneRendererTest().run();
     }
 }

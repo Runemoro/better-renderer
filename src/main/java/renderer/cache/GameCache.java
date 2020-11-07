@@ -3,6 +3,7 @@ package renderer.cache;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import net.runelite.client.RuneLite;
 import renderer.util.FastIntMap;
 import renderer.util.NetworkBuffer;
 
@@ -62,21 +63,11 @@ public class GameCache {
         decrypt();
     }
 
-    public void initLocal() {
-        for (int id = 0; id < ARCHIVE_COUNT; id++) {
-            Archive archive = new Archive(id);
-            archives.put(id, archive);
-            archive.load(0, 0);
-        }
-
-        decrypt();
-    }
-
     private void decrypt() {
         try {
             Type type = new TypeToken<Map<Integer, int[]>>() {
             }.getType();
-            Map<Integer, int[]> keys = new Gson().fromJson(Files.newBufferedReader(Paths.get("xtea.json")), type);
+            Map<Integer, int[]> keys = new Gson().fromJson(Files.newBufferedReader(RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/xtea.json")), type);
 
             for (Map.Entry<Integer, int[]> entry : keys.entrySet()) {
                 int region = entry.getKey();
