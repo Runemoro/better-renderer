@@ -10,18 +10,18 @@ import renderer.cache.CacheSystem;
 import renderer.world.Position;
 import renderer.world.World;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class ChunkRenderScheduler {
     private final List<WorldRenderer> renderersToClose = new ArrayList<>();
     private final ExecutorService buildExecutor;
     private final Cache<Integer, WorldRenderer> chunks = CacheBuilder
             .newBuilder()
-            .expireAfterAccess(Duration.ofSeconds(300))
+            .expireAfterAccess(300, TimeUnit.SECONDS)
             .weigher((Weigher<Integer, WorldRenderer>) (key, value) -> value.opaqueBuffer.memoryUsage() + value.translucentBuffer.memoryUsage())
             .maximumWeight(32 * 1024 * 1024L * 1024L)
             .removalListener(n -> renderersToClose.add(n.getValue()))
