@@ -108,7 +108,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             Path xteaPath = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/xtea.json");
             Files.createDirectories(xteaPath.getParent());
             Files.write(xteaPath, Util.readAllBytes(new URL(XTEA_LOCATION).openStream()));
-            CacheSystem.CACHE.init();
+            CacheSystem.CACHE.init(client.getWorld(), client.getRevision());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -116,7 +116,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         clientThread.invoke(() -> {
             if (client.getGameState() == GameState.LOGIN_SCREEN) {
                 try {
-                    Thread.sleep(1000); // TODO: figure out why this is needed
+                    Thread.sleep(10000); // TODO: figure out why this is needed (workaround for jawt crash)
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

@@ -291,7 +291,7 @@ public class StandaloneRendererTest {
         Path xteaPath = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/xtea.json");
         Files.createDirectories(xteaPath.getParent());
         Files.write(xteaPath, Util.readAllBytes(new URL(XTEA_LOCATION).openStream()));
-        CacheSystem.CACHE.init();
+        CacheSystem.CACHE.init(302, 192);
         new StandaloneRendererTest().run();
     }
 }
