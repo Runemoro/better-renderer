@@ -239,12 +239,16 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
     @Override
     public void draw() {
-        if (hasFrame) {
-            finishFrame();
-        }
+        try {
+            if (hasFrame) {
+                finishFrame();
+            }
 
-        startFrame();
-        hasFrame = true;
+            startFrame();
+            hasFrame = true;
+        } catch (Throwable t) {
+            handleCrash(t);
+        }
     }
 
     private void finishFrame() {
@@ -552,5 +556,16 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         lastWidth = width;
         lastHeight = height;
         lastSamples = config.samples().getSamples();
+    }
+
+    private void handleCrash(Throwable t) {
+        t.printStackTrace();
+        try {
+            pluginManager.stopPlugin(this);
+        } catch (PluginInstantiationException e) {
+            RuntimeException e2 = new RuntimeException(e);
+            e2.addSuppressed(t);
+            throw e2;
+        }
     }
 }
