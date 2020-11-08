@@ -20,9 +20,9 @@ public interface BetterRendererConfig extends Config {
     }
 
     @ConfigItem(keyName = "improvedZoom", name = "Use improved zoom", description =
-            "The vanilla OSRS applies zoom after perspective projection, resulting in FOV distortion," +
-                    "especially with increased zoom limit. Enabling this setting will fix this by adjusting" +
-                    "camera distance to zoom in. However, interface elements such as tile markers may be" +
+            "The vanilla OSRS applies zoom after perspective projection, resulting in FOV distortion, " +
+                    "especially with increased zoom limit. Enabling this setting will fix this by adjusting " +
+                    "camera distance to zoom in. However, interface elements such as tile markers may be " +
                     "slightly offset near the edges of the screen."
     )
     default boolean improvedZoom() {

@@ -2,12 +2,14 @@ package renderer.renderer;
 
 import org.joml.Vector3d;
 import renderer.gl.VertexBuffer;
+import renderer.util.Colors;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class BufferBuilder {
     public static final int VERTEX_SIZE = 32;
+    public static final Vector3d LIGHT = new Vector3d(-50, -50, 50).normalize(); // todo: this is (-50, -50, 10) on vanilla, but makes ground look bad
     private ByteBuffer buffer;
     public int vertexCount = 0;
     private int memoryUsage = -1;
@@ -17,7 +19,12 @@ public class BufferBuilder {
         buffer = ByteBuffer.allocateDirect(triangles * 3 * VERTEX_SIZE).order(ByteOrder.nativeOrder());
     }
 
-    public void vertex(Vector3d position, Vector3d normal, int color, double priority) {
+    public void vertex(Vector3d position, Vector3d normal, int color, double priority, double ambient, double diffuse) {
+        double multiplier = ambient + diffuse * Math.abs(LIGHT.normalize().dot(normal));
+        vertex(position, Colors.darken(color, multiplier), priority);
+    }
+
+    public void vertex(Vector3d position, int color, double priority) {
         if (buffer.limit() - buffer.position() < VERTEX_SIZE) {
             buffer.limit(buffer.position());
             buffer.position(0);
@@ -31,9 +38,9 @@ public class BufferBuilder {
         buffer.putFloat((float) position.y);
         buffer.putFloat((float) position.z);
 
-        buffer.putFloat((float) normal.x);
-        buffer.putFloat((float) normal.y);
-        buffer.putFloat((float) normal.z);
+        buffer.putFloat(0);
+        buffer.putFloat(0);
+        buffer.putFloat(0);
 
         buffer.putInt(color);
         buffer.putFloat((float) priority);

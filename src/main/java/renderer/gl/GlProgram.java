@@ -15,7 +15,6 @@ public class GlProgram implements AutoCloseable {
     private final int fs;
     private boolean closed = false;
     private final int positionAttributeLocation;
-    private final int normalAttributeLocation;
     private final int colorAttributeLocation;
     private final int priorityAttributeLocation;
     private final int transformUniformLocation;
@@ -23,7 +22,6 @@ public class GlProgram implements AutoCloseable {
     private final int viewDistanceUniformLocation;
     private final int fogColorUniformLocation;
     private final int cameraPositionUniformLocation;
-    private final int lightPositionUniformLocation;
     private final int gammaUniformLocation;
 
     public GlProgram(String vertexShader, String fragmentShader) {
@@ -38,14 +36,11 @@ public class GlProgram implements AutoCloseable {
 
         transformUniformLocation = getUniformLocation("transform");
         projectionUniformLocation = getUniformLocation("projection");
-        lightPositionUniformLocation = getUniformLocation("light_position");
         viewDistanceUniformLocation = getUniformLocation("view_distance");
         fogColorUniformLocation = getUniformLocation("fog_color");
         cameraPositionUniformLocation = getUniformLocation("camera_position");
         gammaUniformLocation = getUniformLocation("gamma");
         positionAttributeLocation = getAttributeLocation("position");
-//        modelPositionAttributeLocation = getAttributeLocation("model_position");
-        normalAttributeLocation = getAttributeLocation("normal");
         colorAttributeLocation = getAttributeLocation("color");
         priorityAttributeLocation = getAttributeLocation("priority");
     }
@@ -86,7 +81,6 @@ public class GlProgram implements AutoCloseable {
     public void render(VertexBuffer vertexBuffer) {
         glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.id);
         glVertexAttribPointer(positionAttributeLocation, 3, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 0);
-        glVertexAttribPointer(normalAttributeLocation, 3, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 12);
         glVertexAttribIPointer(colorAttributeLocation, 1, GL_INT, BufferBuilder.VERTEX_SIZE, 24);
         glVertexAttribPointer(priorityAttributeLocation, 1, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 28);
         glDrawArrays(GL_TRIANGLES, 0, vertexBuffer.getVertexCount());
@@ -96,20 +90,17 @@ public class GlProgram implements AutoCloseable {
         glUseProgram(program);
         glUniformMatrix4fv(transformUniformLocation, false, transform);
         glUniformMatrix4fv(projectionUniformLocation, false, projection);
-        glUniform3fv(lightPositionUniformLocation, light);
         glUniform1f(viewDistanceUniformLocation, viewDistance);
         glUniform3f(fogColorUniformLocation, (float) fogColor.x, (float) fogColor.y, (float) fogColor.z);
         glUniform3fv(cameraPositionUniformLocation, position);
         glUniform1f(gammaUniformLocation, gamma);
         glEnableVertexAttribArray(positionAttributeLocation);
-        glEnableVertexAttribArray(normalAttributeLocation);
         glEnableVertexAttribArray(colorAttributeLocation);
         glEnableVertexAttribArray(priorityAttributeLocation);
     }
 
     public void disable() {
         glDisableVertexAttribArray(positionAttributeLocation);
-        glDisableVertexAttribArray(normalAttributeLocation);
         glDisableVertexAttribArray(colorAttributeLocation);
         glDisableVertexAttribArray(priorityAttributeLocation);
         glUseProgram(0);

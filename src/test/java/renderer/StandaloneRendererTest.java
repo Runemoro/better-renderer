@@ -106,8 +106,8 @@ public class StandaloneRendererTest {
 
         drawCrosshair(width, height);
 
-        world.updateRoofs((int) position.x, (int) position.y, 0, 5);
-        chunkRenderer.setRoofsRemoved(world.roofsRemoved, 0);
+//        world.updateRoofs((int) position.x, (int) position.y, 0, 5);
+//        chunkRenderer.setRoofsRemoved(world.roofsRemoved, 0);
 
         Matrix4d projection = new Matrix4d()
                 .perspective(FOV * Math.PI, (double) width / height, 50 / 128., Double.POSITIVE_INFINITY);

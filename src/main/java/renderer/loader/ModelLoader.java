@@ -45,6 +45,7 @@ public class ModelLoader {
         def.id = id;
 
         def.translucent = def.faces.stream().anyMatch(f -> (f.transparency != 0 && f.transparency < 254));
+        def.calculateNormals();
 
         return def;
     }

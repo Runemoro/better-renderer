@@ -30,4 +30,14 @@ public class Colors {
                 (i & 0xff) / 255.
         );
     }
+
+    public static int darken(int color, double multiplier) {
+        int alpha = (color >> 24) & 0xff;
+        color &= 0xffffff;
+
+        if (multiplier < 0) multiplier = 0;
+        if (multiplier > 1) multiplier = 1;
+
+        return (alpha << 24) | pack(unpack(color).mul(multiplier));
+    }
 }

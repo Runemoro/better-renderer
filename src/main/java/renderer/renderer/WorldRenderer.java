@@ -1,9 +1,11 @@
 package renderer.renderer;
 
+import org.joml.Matrix3d;
+import org.joml.Matrix4d;
 import org.joml.Vector3d;
 import renderer.cache.CacheSystem;
 import renderer.model.ModelDefinition;
-import renderer.model.TransformDefinition;
+import renderer.model.TextureDefinition;
 import renderer.util.Util;
 import renderer.world.*;
 
@@ -13,6 +15,8 @@ import java.util.List;
 public class WorldRenderer {
     public static final double SCALE = 1 / 128.;
     public static final int CHUNK_SIZE = Renderer.CHUNK_SIZE;
+    public static final double AMBIENT = 0.5;
+    public static final double DIFFUSE = 2. / 3;
     public final BufferBuilder opaqueBuffer = new BufferBuilder(2500);
     public final BufferBuilder translucentBuffer = new BufferBuilder(100);
     public final World world;
@@ -27,8 +31,12 @@ public class WorldRenderer {
         int x2 = x1 + CHUNK_SIZE;
         int y2 = y1 + CHUNK_SIZE;
 
-        triangle(new Vector3d(x2, y2, -10), new Vector3d(x1, y2, -10), new Vector3d(x1, y1, -10), 0, 0xff, 0);
-        triangle(new Vector3d(x1, y1, -10), new Vector3d(x2, y1, -10), new Vector3d(x2, y2, -10), 0, 0xff, 0);
+        opaqueBuffer.vertex(new Vector3d(x2, y2, -10), 0xff000000, 0);
+        opaqueBuffer.vertex(new Vector3d(x1, y2, -10), 0xff000000, 0);
+        opaqueBuffer.vertex(new Vector3d(x1, y1, -10), 0xff000000, 0);
+        opaqueBuffer.vertex(new Vector3d(x1, y1, -10), 0xff000000, 0);
+        opaqueBuffer.vertex(new Vector3d(x2, y1, -10), 0xff000000, 0);
+        opaqueBuffer.vertex(new Vector3d(x2, y2, -10), 0xff000000, 0);
 
         for (int plane = 0; plane < 4; plane++) {
             for (int x = x1; x < x2; x++) {
@@ -144,7 +152,7 @@ public class WorldRenderer {
             color = world.color(x, y, plane);
         }
 
-        opaqueBuffer.vertex(world.position(x, y, plane), world.normal(x, y, plane), 0xff000000 | color, plane * 20);
+        opaqueBuffer.vertex(world.position(x, y, plane), world.normal(x, y, plane), 0xff000000 | color, plane * 20, AMBIENT, DIFFUSE);
     }
 
     public void groundVertex(int plane, int x, int y, int color) {
@@ -152,7 +160,7 @@ public class WorldRenderer {
             color = world.color(x, y, plane);
         }
 
-        opaqueBuffer.vertex(world.position(x, y, plane), world.normal(x, y, plane), 0xff000000 | color, plane * 20);
+        opaqueBuffer.vertex(world.position(x, y, plane), world.normal(x, y, plane), 0xff000000 | color, plane * 20, AMBIENT, DIFFUSE);
     }
 
     public void object(ObjectDefinition object, LocationType type, int plane, int x, int y, int rotation) {
@@ -208,45 +216,22 @@ public class WorldRenderer {
         Vector3d pos = world.position(x + sizeX / 2., y + sizeY / 2., plane);
         double centerZ = pos.z;
         pos.z = 0;
-
-//        double wallWidth = 1;
-//
-//        if (type.baseType == LocationType.WALL_DECORATION) {
-//            for (Location location : world.locations(x / 64, y / 64)) {
-//                if (location.position.x != x || location.position.y != y && location.position.z == plane) {
-//                    continue;
-//                }
-//
-//                if (location.type != LocationType.WALL && location.type != LocationType.WALL_CORNER && location.type != LocationType.DIAGONAL_WALL) {
-//                    continue;
-//                }
-//
-//                if (location.object.decorationOffset == 16) {
-//                    continue;
-//                }
-//
-//                wallWidth = location.object.decorationOffset / 16.;
-//                break;
-//            }
-//        }
-
         pos.add(object.offsetX * SCALE, object.offsetY * SCALE, -object.offsetZ * SCALE);
-        int highlight = -1;
 
         double wallWidth = 0.25;
-        Vector3d pos2 = new Vector3d();
+        Vector3d offset = new Vector3d();
         if (type == LocationType.WALL_DECORATION_DIAGONAL) {
-            pos2.add(0.5 + wallWidth / 2, -(0.5 + wallWidth / 2), 0);
-            pos2.add(0.5, 0.5, 0);
+            offset.add(0.5 + wallWidth / 2, -(0.5 + wallWidth / 2), 0);
+            offset.add(0.5, 0.5, 0);
             flip = true;
         }
 
         if (type == LocationType.WALL_DECORATION_OPPOSITE) {
-            pos2.add(wallWidth, 0, 0);
+            offset.add(wallWidth, 0, 0);
         }
 
         if (type == LocationType.WALL_DECORATION_OPPOSITE_DIAGONAL) {
-            pos2.add(0.5 + wallWidth / 2, -(0.5 + wallWidth / 2), 0);
+            offset.add(0.5 + wallWidth / 2, -(0.5 + wallWidth / 2), 0);
         }
 
         if (type == LocationType.WALL_DECORATION_DOUBLE) {
@@ -259,82 +244,89 @@ public class WorldRenderer {
             extraPriority += 5;
         }
 
+        double ambient = AMBIENT + object.ambient / 128.;
+        double diffuse = 1 / ((1 / DIFFUSE) + object.contrast / 512.);
+
         for (ModelDefinition model : models) {
             if (type == LocationType.WALL_CORNER) {
-                model(object, highlight, plane, model, !flip, angle, scale, pos, centerZ, null, object.animation != null, extraPriority, pos2, object.mergeNormals);
-                model(object, highlight, plane, model, flip, angle - Math.PI / 2, scale, pos, centerZ, null, object.animation != null, extraPriority, pos2, object.mergeNormals);
+                model(object, plane, model, !flip, centerZ, extraPriority, ambient, diffuse, matrix(pos, angle, offset, scale, !flip), object.contouredGround);
+                model(object, plane, model, flip, centerZ, extraPriority, ambient, diffuse, matrix(pos, angle - Math.PI / 2, offset, scale, flip), object.contouredGround);
             } else {
-                model(object, highlight, plane, model, flip, angle, scale, pos, centerZ, null, object.animation != null, extraPriority, pos2, object.mergeNormals);
+                model(object, plane, model, flip, centerZ, extraPriority, ambient, diffuse, matrix(pos, angle, offset, scale, flip), object.contouredGround);
             }
         }
     }
 
-    public void model(ObjectDefinition object, int highlight, int plane, ModelDefinition model, boolean flip, double angle, Vector3d scale, Vector3d pos, double centerZ, TransformDefinition transform, boolean dynamic, double extraPriority, Vector3d pos2, boolean mergeNormals) {
+    public void model(ObjectDefinition object, int plane, ModelDefinition model, boolean flipped, double centerZ, double priority, double ambient, double diffuse, Matrix4d matrix, int contouredGround) {
+        Matrix3d normalMatrix = matrix.normal(new Matrix3d());
+
         for (ModelDefinition.Face face : model.faces) {
-            int color = object.colorSubstitutions.getOrDefault(face.color, face.color);
+            int color = 0xff - face.transparency << 24 | (object.colorSubstitutions.getOrDefault(face.color, face.color) & 0xffffff);
+            TextureDefinition texture = face.texture != -1 ? CacheSystem.getTextureDefinition(object.textureSubstitutions.getOrDefault(face.texture, face.texture)) : null;
+            double facePriority = model.priority + face.priority + priority + plane * 20;
+            int renderType = face.renderType;
+            if (face.transparency == 0xfe) renderType = 3;
+            if (face.transparency == 0xff) renderType = 2;
 
-            if (face.transparency >= 254) {
-                continue;
-            }
+            Vector3d a = adjustZ(plane, centerZ, matrix.transformPosition(new Vector3d(face.a.x * SCALE, face.a.z * SCALE, -face.a.y * SCALE)), contouredGround);
+            Vector3d b = adjustZ(plane, centerZ, matrix.transformPosition(new Vector3d(face.b.x * SCALE, face.b.z * SCALE, -face.b.y * SCALE)), contouredGround);
+            Vector3d c = adjustZ(plane, centerZ, matrix.transformPosition(new Vector3d(face.c.x * SCALE, face.c.z * SCALE, -face.c.y * SCALE)), contouredGround);
 
-            if (highlight != -1) {
-                color = highlight;
-            }
-
-            if (face.texture != -1) {
-                int texture = object.textureSubstitutions.getOrDefault(face.texture, face.texture);
-                color = CacheSystem.getTextureDefinition(texture).averageColor;
-            }
-
-            Vector3d a = new Vector3d(face.a.x * SCALE, face.a.z * SCALE, -face.a.y * SCALE);
-            Vector3d b = new Vector3d(face.b.x * SCALE, face.b.z * SCALE, -face.b.y * SCALE);
-            Vector3d c = new Vector3d(face.c.x * SCALE, face.c.z * SCALE, -face.c.y * SCALE);
-
-            if (flip) { // reverse vertex order for culling to work
+            if (flipped) { // reverse vertex order for culling to work
                 Vector3d t = a;
                 a = c;
                 c = t;
             }
 
-            triangle(
-                    adjustZ(plane, a.mul(1, flip ? -1 : 1, 1).mul(scale).add(pos2).rotateZ(angle).add(pos), centerZ, object),
-                    adjustZ(plane, b.mul(1, flip ? -1 : 1, 1).mul(scale).add(pos2).rotateZ(angle).add(pos), centerZ, object),
-                    adjustZ(plane, c.mul(1, flip ? -1 : 1, 1).mul(scale).add(pos2).rotateZ(angle).add(pos), centerZ, object),
-                    color,
-                    0xff - face.transparency,
-                    model.priority + face.priority + extraPriority + plane * 20
-            );
+            if (face.texture != -1) {
+                color = texture.averageColor;
+            }
+
+            BufferBuilder buffer = 0xff - face.transparency == 0xff ? opaqueBuffer : translucentBuffer;
+
+            if (renderType == 0) { // smooth shading
+                Vector3d na = normalMatrix.transform(new Vector3d(face.a.normal));
+                Vector3d nb = normalMatrix.transform(new Vector3d(face.b.normal));
+                Vector3d nc = normalMatrix.transform(new Vector3d(face.c.normal));
+
+                buffer.vertex(a, na, color, facePriority, ambient, diffuse);
+                buffer.vertex(b, nb, color, facePriority, ambient, diffuse);
+                buffer.vertex(c, nc, color, facePriority, ambient, diffuse);
+            }
+
+            if (renderType == 1) { // flat shading
+                Vector3d normal = Util.normal(a, b, c);
+
+                buffer.vertex(a, normal, color, facePriority, ambient, diffuse);
+                buffer.vertex(b, normal, color, facePriority, ambient, diffuse);
+                buffer.vertex(c, normal, color, facePriority, ambient, diffuse);
+            }
         }
     }
 
-    public Vector3d adjustZ(int plane, Vector3d v, double centerZ, ObjectDefinition object) {
-        if (object.contouredGround == -1) {
-            v.z += centerZ;
+    public Vector3d adjustZ(int plane, double centerZ, Vector3d p, int contourGround) {
+        if (contourGround == -1) {
+            p.z += centerZ;
         }
 
-        if (object.contouredGround == 0) {
-            v.z += world.height(v.x, v.y, plane);
+        if (contourGround == 0) {
+            p.z += world.height(p.x, p.y, plane);
         }
 
-        if (object.contouredGround > 0) {
+        if (contourGround > 0) {
             throw new UnsupportedOperationException("???");
         }
 
-        return v;
+        return p;
     }
 
-    public void triangle(Vector3d a, Vector3d b, Vector3d c, int color, int alpha, double priority) {
-        Vector3d normal = Util.normal(a, b, c);
-        BufferBuilder buffer = alpha == 0xff ? opaqueBuffer : translucentBuffer;
-
-        color &= 0xffffff;
-
-        buffer.vertex(a, normal, alpha << 24 | color, priority);
-        buffer.vertex(b, normal, alpha << 24 | color, priority);
-        buffer.vertex(c, normal, alpha << 24 | color, priority);
-    }
-
-    public void vertex(Vector3d position, Vector3d normal, int color, int priority) {
-        opaqueBuffer.vertex(position, normal, 0xff000000 | color, priority);
+    public Matrix4d matrix(Vector3d translate1, double rotate, Vector3d translate2, Vector3d scale, boolean mirror) {
+        Matrix4d matrix = new Matrix4d();
+        matrix.translate(translate1);
+        matrix.rotateZ(rotate);
+        matrix.translate(translate2);
+        matrix.scale(scale);
+        matrix.scale(1, mirror ? -1 : 1, 1);
+        return matrix;
     }
 }

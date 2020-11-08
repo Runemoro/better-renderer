@@ -137,14 +137,6 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     }
 
     private void init() {
-        if (client.getGameState() == GameState.LOGIN_SCREEN) {
-            try {
-                Thread.sleep(10000); // TODO: figure out why this is needed (workaround for jawt crash)
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
         client.setDrawCallbacks(this);
         client.setGpu(true);
         client.resizeCanvas();
@@ -242,7 +234,6 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                 Vector3d a = new Vector3d(model.getVerticesX()[i] * WorldRenderer.SCALE, model.getVerticesZ()[i] * WorldRenderer.SCALE, -model.getVerticesY()[i] * WorldRenderer.SCALE).rotateZ(-(Math.PI * orientation / 1024.)).add(pos);
                 Vector3d b = new Vector3d(model.getVerticesX()[j] * WorldRenderer.SCALE, model.getVerticesZ()[j] * WorldRenderer.SCALE, -model.getVerticesY()[j] * WorldRenderer.SCALE).rotateZ(-(Math.PI * orientation / 1024.)).add(pos);
                 Vector3d c = new Vector3d(model.getVerticesX()[k] * WorldRenderer.SCALE, model.getVerticesZ()[k] * WorldRenderer.SCALE, -model.getVerticesY()[k] * WorldRenderer.SCALE).rotateZ(-(Math.PI * orientation / 1024.)).add(pos);
-                Vector3d normal = new Vector3d(0, 0, 1);
 
                 int color1 = model.getFaceColors1()[faceIndex];
                 int color2 = model.getFaceColors2()[faceIndex];
@@ -251,12 +242,12 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                 if (color3 == -1) {
                     color2 = color3 = color1;
                 } else if (color3 == -2) {
-                    continue;
+                    continue; // hidden
                 }
 
-                buffer.vertex(a, normal, alpha << 24 | (Colors.hsl(color1) & 0xffffff), 20 + priority);
-                buffer.vertex(b, normal, alpha << 24 | (Colors.hsl(color2) & 0xffffff), 20 + priority);
-                buffer.vertex(c, normal, alpha << 24 | (Colors.hsl(color3) & 0xffffff), 20 + priority);
+                buffer.vertex(a, alpha << 24 | (Colors.hsl(color1) & 0xffffff), 20 + priority);
+                buffer.vertex(b, alpha << 24 | (Colors.hsl(color2) & 0xffffff), 20 + priority);
+                buffer.vertex(c, alpha << 24 | (Colors.hsl(color3) & 0xffffff), 20 + priority);
             }
         }
     }

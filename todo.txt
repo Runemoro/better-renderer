@@ -3,13 +3,7 @@ Bugs:
  - Fix wall decoration placement
  - Automatically disable vanilla render roofs option
 
-Other:
- - Improve lighting (match vanilla lighting)
- - Improve zoom
- - Detached camera in-game
-
 Chunk system:
  - Level of detail
  - Sort chunks by distance to player
  - Render animated objects outside of scene
- - Make chunks movable when rendering for faster instance rendering
