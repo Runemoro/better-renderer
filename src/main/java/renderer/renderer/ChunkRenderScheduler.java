@@ -21,9 +21,9 @@ public class ChunkRenderScheduler {
     private final ExecutorService buildExecutor;
     private final Cache<Integer, WorldRenderer> chunks = CacheBuilder
             .newBuilder()
-            .expireAfterAccess(300, TimeUnit.SECONDS)
+            .expireAfterAccess(5, TimeUnit.SECONDS)
             .weigher((Weigher<Integer, WorldRenderer>) (key, value) -> value.opaqueBuffer.memoryUsage() + value.translucentBuffer.memoryUsage())
-            .maximumWeight(32 * 1024 * 1024L * 1024L)
+            .maximumWeight(32 * 1024 * 1024L * 1024L) // todo: set this based on max graphics memory
             .removalListener(n -> renderersToClose.add(n.getValue()))
             .concurrencyLevel(Runtime.getRuntime().availableProcessors() + 2)
             .build();

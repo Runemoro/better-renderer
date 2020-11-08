@@ -3,6 +3,7 @@ package renderer.plugin;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.Range;
 import net.runelite.client.plugins.gpu.config.AntiAliasingMode;
 
 @ConfigGroup("betterRenderer")
@@ -13,6 +14,7 @@ public interface BetterRendererConfig extends Config {
     }
 
     @ConfigItem(keyName = "viewDistance", name = "View distance", description = "View distance radius in tiles")
+    @Range(max = 2500)
     default int viewDistance() {
         return 250;
     }
@@ -24,22 +26,24 @@ public interface BetterRendererConfig extends Config {
                     "slightly offset near the edges of the screen."
     )
     default boolean improvedZoom() {
-        return true;
+        return false;
     }
 
     @ConfigItem(keyName = "minimumInterfaceFps", name = "Minimum interface FPS", description = "If FPS drops below this value, world FPS" +
             "will be lowered to keep interface FPS high enough (0 to disable)."
     )
+    @Range(max = 20)
     default int minInterfaceFps() {
         return 10;
     }
 
-    @ConfigItem(keyName = "offThreadRendering", name = "Off-thread rendering", description = "If enabled, world will be rendered on a separate thread")
-    default boolean offThreadRendering() {
+    @ConfigItem(keyName = "offThreadRendering", name = "Off-thread rendering", description = "If enabled, world will be rendered on a separate thread", hidden = true)
+    default boolean offThreadRendering() { // todo: broken
         return true;
     }
 
     @ConfigItem(keyName = "roofRemovalRadius", name = "Roof removal radius", description = "Roofs closer than this value will be removed")
+    @Range(max = 100)
     default int roofRemovalRadius() {
         return 10;
     }

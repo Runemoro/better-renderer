@@ -14,6 +14,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.ui.DrawManager;
+import net.runelite.client.ui.overlay.OverlayManager;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 import org.joml.Vector4i;
@@ -35,7 +36,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -55,6 +55,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     @Inject private DrawManager drawManager;
     @Inject private ClientThread clientThread;
     @Inject private PluginManager pluginManager;
+    @Inject private OverlayManager overlayManager;
 
     private JawtContext context;
     public Renderer renderer;
@@ -95,8 +96,16 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
         // Remove off-heap memory limit (default is equal to Xmx)
         try {
+            ByteBuffer.allocateDirect(0);
             Class<?> bitsClass = Class.forName("java.nio.Bits");
-            Field maxMemoryField = bitsClass.getDeclaredField("MAX_MEMORY");
+            Field maxMemoryField;
+
+            try {
+                maxMemoryField = bitsClass.getDeclaredField("MAX_MEMORY");
+            } catch (NoSuchFieldException e) {
+                maxMemoryField = bitsClass.getDeclaredField("maxMemory"); // Java 8
+            }
+
             maxMemoryField.setAccessible(true);
             maxMemoryField.set(null, Long.MAX_VALUE);
         } catch (ReflectiveOperationException e) {
@@ -104,40 +113,50 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         }
 
         // Download the cache
-        try {
-            Path xteaPath = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/xtea.json");
-            Files.createDirectories(xteaPath.getParent());
-            Files.write(xteaPath, Util.readAllBytes(new URL(XTEA_LOCATION).openStream()));
-            CacheSystem.CACHE.init(client.getWorld(), client.getRevision());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
 
-        clientThread.invoke(() -> {
-            if (client.getGameState() == GameState.LOGIN_SCREEN) {
-                try {
-                    Thread.sleep(10000); // TODO: figure out why this is needed (workaround for jawt crash)
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+        new Thread(() -> {
+            LoadingCacheOverlay loadingCacheOverlay = new LoadingCacheOverlay();
+            overlayManager.add(loadingCacheOverlay);
+
+            try {
+                Path xteaPath = RuneLite.RUNELITE_DIR.toPath().resolve("better-renderer/xtea.json");
+                Files.createDirectories(xteaPath.getParent());
+                Files.write(xteaPath, Util.readAllBytes(new URL(XTEA_LOCATION).openStream()));
+                CacheSystem.CACHE.init(client.getWorld(), client.getRevision());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
 
-            client.setDrawCallbacks(this);
-            client.setGpu(true);
-            client.resizeCanvas();
+            overlayManager.remove(loadingCacheOverlay);
 
-            glfwInit();
-            glfwSetErrorCallback((id, description) -> {
-                throw new RuntimeException(id + ": " + MemoryUtil.memUTF8(description));
-            });
+            clientThread.invoke(this::init);
+        }).start();
+    }
 
-            context = JawtContext.create(client.getCanvas());
-            createInterfaceTexture();
+    private void init() {
+        if (client.getGameState() == GameState.LOGIN_SCREEN) {
+            try {
+                Thread.sleep(10000); // TODO: figure out why this is needed (workaround for jawt crash)
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
-            renderer = new Renderer();
-            dynamicBuffer = new WorldRenderer(renderer.world);
-            renderer.init();
+        client.setDrawCallbacks(this);
+        client.setGpu(true);
+        client.resizeCanvas();
+
+        glfwInit();
+        glfwSetErrorCallback((id, description) -> {
+            throw new RuntimeException(id + ": " + MemoryUtil.memUTF8(description));
         });
+
+        context = JawtContext.create(client.getCanvas());
+        createInterfaceTexture();
+
+        renderer = new Renderer();
+        dynamicBuffer = new WorldRenderer(renderer.world);
+        renderer.init();
     }
 
     @Override
