@@ -56,6 +56,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     @Inject private ClientThread clientThread;
     @Inject private PluginManager pluginManager;
     @Inject private OverlayManager overlayManager;
+    @Inject private LoadingCacheOverlay loadingCacheOverlay;
 
     private JawtContext context;
     public Renderer renderer;
@@ -79,6 +80,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     private boolean executorInitialized = false;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private Future<?> frameFuture;
+    private Thread initThread;
 
     @Override
     protected void startUp() {
@@ -114,8 +116,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
         // Download the cache
 
-        new Thread(() -> {
-            LoadingCacheOverlay loadingCacheOverlay = new LoadingCacheOverlay();
+        initThread = new Thread(() -> {
             overlayManager.add(loadingCacheOverlay);
 
             try {
@@ -130,7 +131,9 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             overlayManager.remove(loadingCacheOverlay);
 
             clientThread.invoke(this::init);
-        }).start();
+        });
+
+        initThread.start();
     }
 
     private void init() {
@@ -162,13 +165,44 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     @Override
     protected void shutDown() {
         clientThread.invoke(() -> {
+            try {
+                overlayManager.remove(loadingCacheOverlay);
+                initThread.stop();
+                renderer.chunkScheduler.stopAllThreads();
+            } catch (Throwable ignored) {
+
+            }
+
             client.setDrawCallbacks(null);
             client.setGpu(false);
-            glfwTerminate();
 
-            context.close();
+            try {
+                glfwTerminate();
+                context.close();
+            } catch (Throwable ignored) {
+
+            }
+
             context = null;
             hasFrame = false;
+            interfaceTexture = -1;
+            lastCanvasWidth = -1;
+            lastCanvasHeight = -1;
+            lastWidth = -1;
+            lastHeight = -1;
+            lastSamples = -1;
+            framebuffer = -1;
+            colorRenderbuffer = -1;
+            framebufferTexture = -1;
+            depthRenderbuffer = -1;
+            width = -1;
+            height = -1;
+            executorInitialized = false;
+            frameFuture = null;
+            renderer = null;
+            dynamicBuffer = null;
+
+            client.resizeCanvas();
         });
     }
 

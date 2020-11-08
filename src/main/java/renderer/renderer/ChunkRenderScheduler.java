@@ -110,4 +110,8 @@ public class ChunkRenderScheduler {
         chunks.invalidateAll();
         scheduled.clear();
     }
+
+    public void stopAllThreads() {
+        buildExecutor.shutdown();
+    }
 }
