@@ -125,7 +125,7 @@ public class StandaloneRendererTest {
                 viewDistance - CHUNK_SIZE,
                 FOG_COLOR,
                 new float[]{(float) position.x, (float) position.y, (float) position.z},
-                0.7f
+                0.8f
         );
 
         List<WorldRenderer> chunks = new ArrayList<>();
@@ -208,7 +208,27 @@ public class StandaloneRendererTest {
                 }
 
                 if (event.button == Button.C) {
+                    BinarySearch.instance = null;
                     chunkRenderer.clear();
+                }
+
+                if (event.button == Button.X) {
+                    BinarySearch.instance = new BinarySearch();
+                    chunkRenderer.clear();
+                }
+
+                if (event.button == Button.Y) {
+                    if (BinarySearch.instance != null) BinarySearch.instance.yes();
+                    chunkRenderer.clear();
+                }
+
+                if (event.button == Button.N) {
+                    if (BinarySearch.instance != null) BinarySearch.instance.no();
+                    chunkRenderer.clear();
+                }
+
+                if (event.button == Button.R) {
+                    System.out.println(BinarySearch.instance);
                 }
             }
         });

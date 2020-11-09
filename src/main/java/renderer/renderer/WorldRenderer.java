@@ -3,6 +3,7 @@ package renderer.renderer;
 import org.joml.Matrix3d;
 import org.joml.Matrix4d;
 import org.joml.Vector3d;
+import renderer.BinarySearch;
 import renderer.cache.CacheSystem;
 import renderer.model.ModelDefinition;
 import renderer.model.TextureDefinition;
@@ -164,6 +165,12 @@ public class WorldRenderer {
     }
 
     public void object(ObjectDefinition object, LocationType type, int plane, int x, int y, int rotation) {
+        if (BinarySearch.instance != null) {
+            if (!BinarySearch.instance.test(object.id)) {
+                return;
+            }
+        }
+
         if (object.animation != null) {
             return;
         }
@@ -284,7 +291,7 @@ public class WorldRenderer {
 
             BufferBuilder buffer = 0xff - face.transparency == 0xff ? opaqueBuffer : translucentBuffer;
 
-            if (renderType == 0) { // smooth shading
+            if (renderType == 0 && !object.flatShading) { // smooth shading
                 Vector3d na = normalMatrix.transform(new Vector3d(face.a.normal));
                 Vector3d nb = normalMatrix.transform(new Vector3d(face.b.normal));
                 Vector3d nc = normalMatrix.transform(new Vector3d(face.c.normal));
@@ -294,7 +301,7 @@ public class WorldRenderer {
                 buffer.vertex(c, nc, color, facePriority, ambient, diffuse);
             }
 
-            if (renderType == 1) { // flat shading
+            if (renderType == 1 || (renderType == 0 && object.flatShading)) { // flat shading
                 Vector3d normal = Util.normal(a, b, c);
 
                 buffer.vertex(a, normal, color, facePriority, ambient, diffuse);
