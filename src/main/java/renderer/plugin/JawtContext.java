@@ -5,6 +5,7 @@ import org.lwjgl.system.jawt.JAWT;
 import org.lwjgl.system.jawt.JAWTDrawingSurface;
 
 import java.awt.*;
+import java.lang.reflect.Field;
 
 import static jogamp.nativewindow.jawt.JAWTFactory.JAWT_VERSION_1_4;
 import static org.lwjgl.system.jawt.JAWTFunctions.*;
@@ -14,6 +15,7 @@ public abstract class JawtContext implements AutoCloseable {
     protected final JAWTDrawingSurface drawingSurface;
 
     protected JawtContext(Component component) {
+        resetPeer(component);
         jawt = JAWT.calloc();
         jawt.version(JAWT_VERSION_1_4);
         JAWT_GetAWT(jawt);
@@ -55,5 +57,17 @@ public abstract class JawtContext implements AutoCloseable {
 
     public interface Lock extends AutoCloseable {
         void close();
+    }
+
+    private static void resetPeer(Component component) {
+        try {
+            Field peerField = Component.class.getDeclaredField("peer");
+            peerField.setAccessible(true);
+            peerField.set(component, null);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+
+        component.addNotify();
     }
 }

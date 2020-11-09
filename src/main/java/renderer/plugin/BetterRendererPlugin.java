@@ -45,7 +45,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.GL11C.glGetError;
 import static org.lwjgl.opengl.GL32.*;
 
 @PluginDescriptor(name = "Better Renderer", description = "Optimized renderer providing nearly infinite view distance and minor graphical improvements")
@@ -90,6 +89,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             if (plugin.getName().equals("GPU") && pluginManager.isPluginEnabled(plugin)) {
                 try {
                     System.out.println("Stopping GPU plugin");
+                    pluginManager.setPluginEnabled(plugin, false);
                     pluginManager.stopPlugin(plugin);
                 } catch (PluginInstantiationException e) {
                     throw new RuntimeException(e);
@@ -252,7 +252,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                     color2 = Colors.hsl(color2) & 0xffffff;
                     color3 = Colors.hsl(color3) & 0xffffff;
 
-                    short textureId = model.getFaceTextures()==null?-1: model.getFaceTextures()[faceIndex];
+                    short textureId = model.getFaceTextures() == null ? -1 : model.getFaceTextures()[faceIndex];
 
                     if (textureId != -1) {
                         if (true) continue;
@@ -608,6 +608,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     private void handleCrash(Throwable t) {
         t.printStackTrace();
         try {
+            pluginManager.setPluginEnabled(this, false);
             pluginManager.stopPlugin(this);
         } catch (PluginInstantiationException e) {
             RuntimeException e2 = new RuntimeException(e);
