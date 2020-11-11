@@ -16,9 +16,11 @@ import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import org.joml.Vector3d;
-import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.awt.*;
 import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.Platform;
+import org.lwjgl.system.windows.RECT;
+import org.lwjgl.system.windows.User32;
 import renderer.cache.CacheSystem;
 import renderer.model.TextureDefinition;
 import renderer.renderer.BufferBuilder;
@@ -28,6 +30,7 @@ import renderer.util.Colors;
 import renderer.util.Util;
 
 import javax.inject.Inject;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.lang.reflect.Field;
@@ -42,6 +45,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.opengl.GL32.*;
 
 @PluginDescriptor(name = "Better Renderer", description = "Optimized renderer providing nearly infinite view distance and minor graphical improvements")
@@ -55,7 +59,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     @Inject private OverlayManager overlayManager;
     @Inject private LoadingCacheOverlay loadingCacheOverlay;
 
-    private JawtContext context;
+    private PlatformGLCanvas platformCanvas;
     public Renderer renderer;
     private WorldRenderer dynamicBuffer;
     private boolean hasFrame = false;
@@ -78,6 +82,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private Future<?> frameFuture;
     private Thread initThread;
+    private long context;
 
     @Override
     protected void startUp() {
@@ -144,12 +149,34 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             throw new RuntimeException(id + ": " + MemoryUtil.memUTF8(description));
         });
 
-        context = JawtContext.create(client.getCanvas());
-        createInterfaceTexture();
+        switch (Platform.get()) {
+            case WINDOWS:
+                platformCanvas = new PlatformWin32GLCanvas();
+                break;
+            case LINUX:
+                platformCanvas = new PlatformLinuxGLCanvas();
+                break;
+            case MACOSX:
+                platformCanvas = new PlatformMacOSXGLCanvas();
+                break;
+            default:
+                throw new AssertionError();
+        }
 
+        try {
+            context = platformCanvas.create(client.getCanvas(), new GLData(), new GLData());
+        } catch (AWTException e) {
+            throw new RuntimeException(e);
+        }
+
+        attachCanvas();
+        createCapabilities();
+
+        createInterfaceTexture();
         renderer = new Renderer();
         dynamicBuffer = new WorldRenderer(renderer.world);
         renderer.init();
+        detachCanvas();
     }
 
     @Override
@@ -168,12 +195,12 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
             try {
                 glfwTerminate();
-                context.close();
+                platformCanvas.dispose();
             } catch (Throwable ignored) {
 
             }
 
-            context = null;
+            platformCanvas = null;
             hasFrame = false;
             interfaceTexture = -1;
             lastCanvasWidth = -1;
@@ -295,7 +322,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         }
     }
 
-    private void finishFrame() {
+    private void finishFrame() throws AWTException {
         if (config.offThreadRendering() && Platform.get() != Platform.LINUX) {
             if (frameFuture != null) {
                 try {
@@ -304,13 +331,13 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                     throw new UncheckedExecutionException(e);
                 }
 
-                context.attach();
+                attachCanvas();
             } else {
-                context.attach();
+                attachCanvas();
                 renderWorld(width, height, dynamicBuffer);
             }
         } else {
-            context.attach();
+            attachCanvas();
             renderWorld(width, height, dynamicBuffer);
         }
 
@@ -331,11 +358,21 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         if (err != 0) {
             throw new IllegalStateException("0x" + Integer.toHexString(err));
         }
+
+        detachCanvas();
     }
 
-    private void startFrame() {
-        width = context.width();
-        height = context.height();
+    private void startFrame() { // todo
+        width = client.getCanvasWidth();
+        height = client.getCanvasHeight();
+
+        if (platformCanvas instanceof PlatformWin32GLCanvas) { // dpi-aware height
+            RECT rect = RECT.calloc();
+            User32.GetWindowRect(((PlatformWin32GLCanvas) platformCanvas).hwnd, rect);
+            width = rect.right() - rect.left();
+            height = rect.bottom() - rect.top();
+            rect.free();
+        }
 
         if (client.getLocalPlayer() != null && Math.abs(client.getBaseX() + client.getCameraX() / 128.) > 1) { // ???
             // Update renderer settings
@@ -375,7 +412,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         updateFramebuffer();
 
         // Submit frame render task to the executor
-        context.detach();
+        detachCanvas();
 
         WorldRenderer localDynamic = dynamicBuffer;
 
@@ -383,21 +420,16 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
         if (config.offThreadRendering() && Platform.get() != Platform.LINUX) {
             frameFuture = executor.submit(() -> {
-                context.attach();
-
+                attachCanvas();
                 if (!executorInitialized) {
-                    GL.createCapabilities();
+                    createCapabilities();
                     executorInitialized = true;
                 }
 
                 renderWorld(width, height, localDynamic);
-                context.detach();
+                detachCanvas();
             });
         }
-    }
-
-    private void updateWindow() {
-        context.update();
     }
 
     private void renderWorld(int width, int height, WorldRenderer dynamic) {
@@ -584,5 +616,27 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             e2.addSuppressed(t);
             throw e2;
         }
+    }
+
+    private void attachCanvas() {
+        try {
+            platformCanvas.lock();
+            platformCanvas.makeCurrent(context);
+        } catch (AWTException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void detachCanvas() {
+        try {
+            platformCanvas.makeCurrent(0);
+            platformCanvas.unlock();
+        } catch (AWTException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void updateWindow() {
+        platformCanvas.swapBuffers();
     }
 }
