@@ -56,15 +56,19 @@ public class JawtContextLinux extends JawtContext {
         }
     }
 
-    @Override
-    public void attach() {
-        glXMakeCurrent(display, drawable, context);
-    }
+	@Override
+	public void attach() {
+		try (Lock ignored = lock()) {
+			glXMakeCurrent(display, drawable, context);
+		}
+	}
 
-    @Override
-    public void detach() {
-        glXMakeCurrent(display, drawable, 0);
-    }
+	@Override
+	public void detach() {
+		try (Lock ignored = lock()) {
+			glXMakeCurrent(display, 0, 0);
+		}
+	}
 
     @Override
     public int width() {
