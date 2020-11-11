@@ -20,6 +20,7 @@ import org.joml.Vector3i;
 import org.joml.Vector4i;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.system.Platform;
 import renderer.cache.CacheSystem;
 import renderer.model.TextureDefinition;
 import renderer.renderer.BufferBuilder;
@@ -299,7 +300,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     }
 
     private void finishFrame() {
-        if (config.offThreadRendering()) {
+        if (config.offThreadRendering() && Platform.get() != Platform.LINUX) {
             if (frameFuture != null) {
                 try {
                     frameFuture.get();
@@ -415,7 +416,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         WorldRenderer extra = dynamicBuffer;
         dynamicBuffer = new WorldRenderer(renderer.world);
 
-        if (config.offThreadRendering()) {
+        if (config.offThreadRendering() && Platform.get() != Platform.LINUX) {
             frameFuture = executor.submit(() -> {
                 context.attach();
 
