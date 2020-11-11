@@ -47,4 +47,10 @@ public interface BetterRendererConfig extends Config {
     default int roofRemovalRadius() {
         return 10;
     }
+
+    @ConfigItem(keyName = "gammaOffset", name = "Brightness adjustment", description = "Amount by which to offset brightness (in 1/100ths of gamma value)")
+    @Range(min = -1000, max = 1000)
+    default int gammaOffset() {
+        return -20;
+    }
 }

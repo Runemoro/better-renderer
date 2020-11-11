@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.joml.Vector2d;
 import org.joml.Vector3d;
-import org.joml.Vector3i;
 import org.joml.Vector4d;
 import renderer.cache.CacheSystem;
 import renderer.renderer.WorldRenderer;
@@ -19,6 +18,7 @@ public class World {
     public HashSet<Position> roofsRemoved = new HashSet<>();
     public int roofRemovalPlane;
     public Int2ObjectMap<Region> instanceRegions = null;
+    private Int2ObjectMap<List<Location>> localChunks = new Int2ObjectOpenHashMap<>();
 
     private Region region(int x, int y) {
         if (instanceRegions != null) {
@@ -57,9 +57,28 @@ public class World {
         return region == null ? 0 : region.settings[plane][x % 64][y % 64];
     }
 
-    public List<Location> locations(int regionX, int regionY) {
-        Region region = region(regionX, regionY);
-        return region == null ? Collections.emptyList() : region.locations;
+    public List<Location> locations(int chunkX, int chunkY) {
+        List<Location> locations = localChunks.get((chunkX << 16) + chunkY);
+
+        if (locations != null) {
+            return locations;
+        }
+
+        Region region = region(chunkX / 8, chunkY / 8);
+
+        if (region == null) {
+            return Collections.emptyList();
+        }
+
+        locations = new ArrayList<>();
+
+        for (Location location : region.locations) {
+            if (location.position.x / 8 == chunkX && location.position.y / 8 == chunkY) {
+                locations.add(location);
+            }
+        }
+
+        return locations;
     }
 
     /////////////////////////////////////////////////////
@@ -286,95 +305,5 @@ public class World {
         }
 
         roofRemovalPlane = z + 1;
-    }
-
-    /////////////////////////////////////////////////////
-    //                  Instances                      //
-    /////////////////////////////////////////////////////
-
-    public void copyInstanceChunk(Vector3i chunkPos, Vector3i templatePos, int orientation) {
-        if (true) return;
-        if (instanceRegions == null) {
-            instanceRegions = new Int2ObjectOpenHashMap<>();
-        }
-
-        int regionX = chunkPos.x / 8;
-        int regionY = chunkPos.x / 8;
-
-        Region region = instanceRegions.computeIfAbsent(regionX * 256 + regionY, k -> new Region(regionX, regionY));
-        Region template = region(templatePos.x / 8, templatePos.y / 8);
-
-        int templateStartX = templatePos.x * 8;
-        int templateEndX = (templatePos.x + 1) * 8;
-        int templateStartY = templatePos.y * 8;
-        int templateEndY = (templatePos.y + 1) * 8;
-
-        for (Location location : template.locations) {
-            Position p = location.position;
-
-            if (p.x >= templateStartX && p.x < templateEndX && p.y >= templateStartY && p.y < templateEndY && p.z == templatePos.z) {
-                region.locations.add(new Location(location.object, location.type, (location.rotation + orientation) % 4, adjust(p, chunkPos, templatePos, orientation)));
-            }
-        }
-
-        for (int x = templateStartX; x <= templateEndX; x++) {
-            for (int y = templateStartY; y <= templateEndY; y++) {
-                Position pos = adjust(new Position(x, y, templatePos.z), chunkPos, templatePos, orientation);
-                int xir = pos.x % 64;
-                int yir = pos.y % 64;
-                int z = pos.z;
-
-                int txir = x % 64;
-                int tyir = y % 64;
-                int tz = templatePos.z;
-
-                region.heights[z][xir][yir] = template.heights[tz][txir][tyir];
-                region.settings[z][xir][yir] = template.settings[tz][txir][tyir];
-                region.overlays[z][xir][yir] = template.overlays[tz][txir][tyir];
-                region.overlayShapes[z][xir][yir] = template.overlayShapes[tz][txir][tyir];
-                region.overlayRotations[z][xir][yir] = template.overlayRotations[tz][txir][tyir];
-                region.underlays[z][xir][yir] = template.underlays[tz][txir][tyir];
-            }
-        }
-    }
-
-    private Position adjust(Position pos, Vector3i target, Vector3i source, int orientation) {
-        int dx = (pos.x - source.x * 8);
-        int dy = (pos.y - source.y * 8);
-
-        int dxr;
-        int dyr;
-
-        switch (orientation) {
-            case 0: // rotate 90 = mirror vertical, mirror diagonal
-                break;
-
-            case 1: { // rotate 180 = mirror vertical, mirror horizontal
-                dy = 8 - dy;
-                int t = dx;
-                dx = dy;
-                dy = t;
-                break;
-            }
-
-            case 2: { // rotate 90 = mirror diagonal, mirror vertical
-                dy = 8 - dy;
-                dx = 8 - dx;
-                break;
-            }
-
-            case 3: {
-                int t = dx;
-                dx = dy;
-                dy = t;
-                dy = 8 - dy;
-                break;
-            }
-
-            default:
-                throw new AssertionError();
-        }
-
-        return new Position(target.x * 8 + dx, target.y * 8 + dy, target.z);
     }
 }

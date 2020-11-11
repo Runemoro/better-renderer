@@ -51,29 +51,26 @@ public class WorldRenderer {
             }
         }
 
-        for (Location location : world.locations(x1 / 64, y1 / 64)) {
+        for (Location location : world.locations(x1 / 8, y1 / 8)) {
             int plane = location.position.z;
             int x = location.position.x;
             int y = location.position.y;
 
-            if (x >= x1 && x < x2 && y >= y1 && y < y2) {
-                int actualZ = location.position.z;
+            int actualZ = location.position.z;
 
-                if ((world.settings(x, y, plane) & 0x2) != 0) {
-                    actualZ--; // bridge, shift down
-                }
-
-                if ((world.settings(x, y, plane) & 0x8) != 0) {
-                    actualZ = 0; // arch, always render (at the ge for example)
-                }
-
-
-                if (actualZ >= world.roofRemovalPlane && world.roofsRemoved.contains(new Position(x, y, 0))) {
-                    continue;
-                }
-
-                object(location.object, location.type, plane, x, y, location.rotation);
+            if ((world.settings(x, y, plane) & 0x2) != 0) {
+                actualZ--; // bridge, shift down
             }
+
+            if ((world.settings(x, y, plane) & 0x8) != 0) {
+                actualZ = 0; // arch, always render (at the ge for example)
+            }
+
+            if (actualZ >= world.roofRemovalPlane && world.roofsRemoved.contains(new Position(x, y, 0))) {
+                continue;
+            }
+
+            object(location.object, location.type, plane, x, y, location.rotation);
         }
     }
 

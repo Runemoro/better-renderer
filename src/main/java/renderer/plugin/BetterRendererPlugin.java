@@ -16,8 +16,6 @@ import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import org.joml.Vector3d;
-import org.joml.Vector3i;
-import org.joml.Vector4i;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryUtil;
 import renderer.cache.CacheSystem;
@@ -37,8 +35,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -355,7 +351,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             renderer.rotation.rotateX(-cameraPitch);
             renderer.rotation.rotateZ(cameraYaw);
 
-            if (config.improvedZoom() /*&& client.getOculusOrbFocalPointX() != client.getLocalPlayer().getLocalLocation().getX()*/) {
+            if (config.improvedZoom()) {
                 renderer.scale = 1;
                 double amount = (1 - 1 / zoom) * getActorPosition(client.getLocalPlayer()).distance(cameraPosition);
                 cameraPosition.add(renderer.rotation.transformInverse(new Vector3d(0, 0, -amount)));
@@ -365,40 +361,8 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
             renderer.position.set(cameraPosition);
             renderer.viewDistance = config.viewDistance();
-            renderer.gamma = 1 - 0.1 * client.getVarpValue(166);
+            renderer.gamma = 1 - 0.1 * client.getVarpValue(166) - config.gammaOffset() / 100.;
             renderer.fogColor = Colors.unpack(client.getSkyboxColor());
-
-            // Instance chunks
-            if (client.isInInstancedRegion()) {
-                Map<Vector3i, Vector4i> chunks = new HashMap<>();
-
-                for (int x1 = 0; x1 < 13; x1++) {
-                    for (int y1 = 0; y1 < 13; y1++) {
-                        for (int z1 = 0; z1 < 4; z1++) {
-                            int chunkData = client.getInstanceTemplateChunks()[z1][x1][y1];
-                            int rotation = chunkData >> 1 & 0x3;
-                            int x2 = (chunkData >> 14 & 0x3FF);
-                            int y2 = (chunkData >> 3 & 0x7FF);
-                            int z2 = chunkData >> 24 & 0x3;
-
-                            Vector3i pos1 = new Vector3i(client.getBaseX() / 8 + x1, client.getBaseY() / 8 + y1, z1);
-                            Vector4i pos2 = new Vector4i(x2, y2, z2, rotation);
-
-                            chunks.put(pos1, pos2);
-                        }
-                    }
-                }
-
-                if (renderer.setInstanceChunks(chunks)) {
-                    for (Map.Entry<Vector3i, Vector4i> chunk : chunks.entrySet()) {
-                        renderer.world.copyInstanceChunk(chunk.getKey(), new Vector3i(chunk.getValue().x, chunk.getValue().y, chunk.getValue().z), chunk.getValue().w);
-                        renderer.chunkScheduler.render(chunk.getKey().x, chunk.getKey().y);
-                    }
-                }
-            } else {
-                renderer.setInstanceChunks(null);
-                renderer.world.instanceRegions = null;
-            }
 
             // Roofs
             WorldPoint p = client.getLocalPlayer().getWorldLocation();
@@ -412,7 +376,8 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         // Submit frame render task to the executor
         context.detach();
 
-        WorldRenderer extra = dynamicBuffer;
+        WorldRenderer localDynamic = dynamicBuffer;
+
         dynamicBuffer = new WorldRenderer(renderer.world);
 
         if (config.offThreadRendering()) {
@@ -424,7 +389,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                     executorInitialized = true;
                 }
 
-                renderWorld(width, height, extra);
+                renderWorld(width, height, localDynamic);
                 context.detach();
             });
         }
@@ -435,8 +400,11 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     }
 
     private void renderWorld(int width, int height, WorldRenderer dynamic) {
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        if (client.getGameState().getState() <= 20) {
+            return;
+        }
 
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         renderer.draw(width, height, dynamic);
     }
 
