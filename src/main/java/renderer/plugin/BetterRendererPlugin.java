@@ -408,6 +408,8 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             renderer.chunkScheduler.setRoofsRemoved(renderer.world.roofsRemoved, renderer.world.roofRemovalPlane);
         }
 
+        attachCanvas();
+
         // Create or update the FBO
         updateFramebuffer();
 
