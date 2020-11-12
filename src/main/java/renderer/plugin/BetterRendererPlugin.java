@@ -164,7 +164,10 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         }
 
         try {
-            context = platformCanvas.create(client.getCanvas(), new GLData(), new GLData());
+            GLData data = new GLData();
+            data.majorVersion = 3;
+            data.minorVersion = 2;
+            context = platformCanvas.create(client.getCanvas(), data, data);
         } catch (AWTException e) {
             throw new RuntimeException(e);
         }
@@ -322,7 +325,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         }
     }
 
-    private void finishFrame() throws AWTException {
+    private void finishFrame() {
         if (config.offThreadRendering() && Platform.get() != Platform.LINUX) {
             if (frameFuture != null) {
                 try {
@@ -351,7 +354,6 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         updateWindow();
         drawManager.processDrawComplete(this::screenshot);
         framerateTracker.nextFrame();
-
 
         int err = glGetError();
 
@@ -625,7 +627,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             platformCanvas.lock();
             platformCanvas.makeCurrent(context);
         } catch (AWTException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
@@ -634,7 +636,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             platformCanvas.makeCurrent(0);
             platformCanvas.unlock();
         } catch (AWTException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
