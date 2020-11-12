@@ -1,7 +1,6 @@
 package renderer.gl;
 
-import static org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor;
-import static org.lwjgl.glfw.GLFW.glfwGetVideoMode;
+import static org.lwjgl.glfw.GLFW.*;
 
 public class Monitor {
     final long handle;

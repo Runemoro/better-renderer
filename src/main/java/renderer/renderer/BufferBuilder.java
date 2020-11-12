@@ -1,5 +1,6 @@
 package renderer.renderer;
 
+import org.joml.Vector2d;
 import org.joml.Vector3d;
 import renderer.gl.VertexBuffer;
 import renderer.util.Colors;
@@ -46,6 +47,7 @@ public class BufferBuilder {
         buffer.putFloat((float) priority);
     }
 
+    @SuppressWarnings("RedundantCast") // java 8
     public VertexBuffer buffer() {
         if (uploaded == null) {
             memoryUsage = buffer.position();
@@ -59,8 +61,6 @@ public class BufferBuilder {
     }
 
     public void close() {
-//        buffer = null;
-
         if (uploaded != null) {
             uploaded.close();
         }

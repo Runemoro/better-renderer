@@ -3,11 +3,7 @@ package renderer.gl;
 import org.joml.Vector3d;
 import renderer.renderer.BufferBuilder;
 
-import static org.lwjgl.opengl.GL11C.*;
-import static org.lwjgl.opengl.GL15C.GL_ARRAY_BUFFER;
-import static org.lwjgl.opengl.GL15C.glBindBuffer;
-import static org.lwjgl.opengl.GL20C.*;
-import static org.lwjgl.opengl.GL30C.glVertexAttribIPointer;
+import static org.lwjgl.opengl.GL32C.*;
 
 public class GlProgram implements AutoCloseable {
     private final int program;
@@ -79,11 +75,19 @@ public class GlProgram implements AutoCloseable {
     }
 
     public void render(VertexBuffer vertexBuffer) {
-        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.id);
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.buffer);
+        vertexBuffer.bind();
+
         glVertexAttribPointer(positionAttributeLocation, 3, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 0);
+        glEnableVertexAttribArray(positionAttributeLocation);
+
         glVertexAttribIPointer(colorAttributeLocation, 1, GL_INT, BufferBuilder.VERTEX_SIZE, 24);
+        glEnableVertexAttribArray(colorAttributeLocation);
+
         glVertexAttribPointer(priorityAttributeLocation, 1, GL_FLOAT, false, BufferBuilder.VERTEX_SIZE, 28);
-        glDrawArrays(GL_TRIANGLES, 0, vertexBuffer.getVertexCount());
+        glEnableVertexAttribArray(priorityAttributeLocation);
+
+        vertexBuffer.draw();
     }
 
     public void enable(float[] transform, float[] projection, float[] light, float viewDistance, Vector3d fogColor, float[] position, float gamma) {
@@ -94,15 +98,9 @@ public class GlProgram implements AutoCloseable {
         glUniform3f(fogColorUniformLocation, (float) fogColor.x, (float) fogColor.y, (float) fogColor.z);
         glUniform3fv(cameraPositionUniformLocation, position);
         glUniform1f(gammaUniformLocation, gamma);
-        glEnableVertexAttribArray(positionAttributeLocation);
-        glEnableVertexAttribArray(colorAttributeLocation);
-        glEnableVertexAttribArray(priorityAttributeLocation);
     }
 
     public void disable() {
-        glDisableVertexAttribArray(positionAttributeLocation);
-        glDisableVertexAttribArray(colorAttributeLocation);
-        glDisableVertexAttribArray(priorityAttributeLocation);
         glUseProgram(0);
     }
 

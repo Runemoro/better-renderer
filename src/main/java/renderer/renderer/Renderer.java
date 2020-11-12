@@ -10,8 +10,7 @@ import java.io.UncheckedIOException;
 import java.lang.Math;
 import java.util.*;
 
-import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL13.GL_MULTISAMPLE;
+import static org.lwjgl.opengl.GL32C.*;
 
 public class Renderer {
     private static final double FOV = 0.5;

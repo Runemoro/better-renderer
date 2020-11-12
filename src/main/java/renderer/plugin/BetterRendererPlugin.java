@@ -33,6 +33,8 @@ import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -46,7 +48,7 @@ import java.util.concurrent.Future;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
-import static org.lwjgl.opengl.GL32.*;
+import static org.lwjgl.opengl.GL32C.*;
 
 @PluginDescriptor(name = "Better Renderer", description = "Optimized renderer providing nearly infinite view distance and minor graphical improvements")
 public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
@@ -83,6 +85,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     private Future<?> frameFuture;
     private Thread initThread;
     private long context;
+    private InterfaceRenderer interfaceRenderer;
 
     @Override
     protected void startUp() {
@@ -167,7 +170,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             GLData data = new GLData();
             data.majorVersion = 3;
             data.minorVersion = 2;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = GLData.Profile.CORE;
             context = platformCanvas.create(client.getCanvas(), data, data);
         } catch (AWTException e) {
             throw new RuntimeException(e);
@@ -175,11 +178,22 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
         attachCanvas();
         createCapabilities();
+        GlUtil.enableThrowOnError();
 
         createInterfaceTexture();
         renderer = new Renderer();
         dynamicBuffer = new WorldRenderer(renderer.world);
         renderer.init();
+
+        try {
+            interfaceRenderer = new InterfaceRenderer(
+                    new String(Util.readAllBytes(Renderer.class.getResourceAsStream("/shaders/ui-vertex-shader.glsl"))),
+                    new String(Util.readAllBytes(Renderer.class.getResourceAsStream("/shaders/ui-fragment-shader.glsl")))
+            );
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
         detachCanvas();
     }
 
@@ -421,7 +435,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
         dynamicBuffer = new WorldRenderer(renderer.world);
 
-        if (config.offThreadRendering() && Platform.get() != Platform.LINUX) {
+        if (config.offThreadRendering() && Platform.get() == Platform.WINDOWS) {
             frameFuture = executor.submit(() -> {
                 attachCanvas();
                 if (!executorInitialized) {
@@ -464,7 +478,6 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     private void drawInterface() {
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
-        glEnable(GL_TEXTURE_2D);
         int canvasWidth = client.getCanvasWidth();
         int canvasHeight = client.getCanvasHeight();
 
@@ -479,23 +492,11 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         final BufferProvider b = client.getBufferProvider();
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, b.getWidth(), b.getHeight(), GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, b.getPixels());
 
-        glColor4d(1, 1, 1, 1);
-        double i = 1;
-        glBegin(GL_QUADS);
-        glTexCoord2d(0, 0);
-        glVertex2d(-i, i);
-        glTexCoord2d(0, 1);
-        glVertex2d(-i, -i);
-        glTexCoord2d(1, 1);
-        glVertex2d(i, -i);
-        glTexCoord2d(1, 0);
-        glVertex2d(i, i);
-        glEnd();
+        interfaceRenderer.draw();
 
         glBindTexture(GL_TEXTURE_2D, 0);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
-        glDisable(GL_TEXTURE_2D);
     }
 
     @Override

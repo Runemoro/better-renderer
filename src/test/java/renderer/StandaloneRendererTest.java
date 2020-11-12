@@ -18,9 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL11C.glGetError;
-import static org.lwjgl.opengl.GL13.GL_MULTISAMPLE;
+import static org.lwjgl.opengl.GL32.*; // todo: core profile
 
 public class StandaloneRendererTest {
     private static final String XTEA_LOCATION = "https://gist.githubusercontent.com/Runemoro/d68a388aeb35ad432adf8af027eae832/raw/xtea.json";
