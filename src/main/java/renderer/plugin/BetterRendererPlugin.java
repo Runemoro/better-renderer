@@ -157,7 +157,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                 platformCanvas = new PlatformLinuxGLCanvas();
                 break;
             case MACOSX:
-                platformCanvas = new PlatformMacOSXGLCanvas2();
+                platformCanvas = new PlatformMacOSXGLCanvas();
                 break;
             default:
                 throw new AssertionError();
