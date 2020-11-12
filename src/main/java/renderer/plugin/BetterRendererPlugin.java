@@ -341,7 +341,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     }
 
     private void finishFrame() {
-        if (config.offThreadRendering() && Platform.get() != Platform.LINUX) {
+        if (config.offThreadRendering() && Platform.get() == Platform.WINDOWS) {
             if (frameFuture != null) {
                 try {
                     frameFuture.get();
