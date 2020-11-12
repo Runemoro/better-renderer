@@ -157,7 +157,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                 platformCanvas = new PlatformLinuxGLCanvas();
                 break;
             case MACOSX:
-                platformCanvas = new PlatformMacOSXGLCanvas();
+                platformCanvas = new PlatformMacOSXGLCanvas2();
                 break;
             default:
                 throw new AssertionError();
@@ -167,6 +167,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             GLData data = new GLData();
             data.majorVersion = 3;
             data.minorVersion = 2;
+            data.profile = GLData.Profile.COMPATIBILITY;
             context = platformCanvas.create(client.getCanvas(), data, data);
         } catch (AWTException e) {
             throw new RuntimeException(e);
@@ -365,8 +366,8 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     }
 
     private void startFrame() { // todo
-        width = client.getCanvasWidth();
-        height = client.getCanvasHeight();
+        width = client.getCanvas().getWidth();
+        height = client.getCanvas().getHeight();
 
         if (platformCanvas instanceof PlatformWin32GLCanvas) { // dpi-aware height
             RECT rect = RECT.calloc();
@@ -375,6 +376,11 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             height = rect.bottom() - rect.top();
             rect.free();
         }
+
+        // Create or update the FBO
+        attachCanvas();
+        updateFramebuffer();
+        detachCanvas();
 
         if (client.getLocalPlayer() != null && Math.abs(client.getBaseX() + client.getCameraX() / 128.) > 1) { // ???
             // Update renderer settings
@@ -410,14 +416,7 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             renderer.chunkScheduler.setRoofsRemoved(renderer.world.roofsRemoved, renderer.world.roofRemovalPlane);
         }
 
-        attachCanvas();
-
-        // Create or update the FBO
-        updateFramebuffer();
-
         // Submit frame render task to the executor
-        detachCanvas();
-
         WorldRenderer localDynamic = dynamicBuffer;
 
         dynamicBuffer = new WorldRenderer(renderer.world);
