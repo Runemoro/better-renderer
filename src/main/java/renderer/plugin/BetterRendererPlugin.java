@@ -166,6 +166,9 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
                 throw new AssertionError();
         }
 
+        client.getCanvas().removeNotify();
+        client.getCanvas().addNotify();
+
         try {
             GLData data = new GLData();
             data.majorVersion = 3;
