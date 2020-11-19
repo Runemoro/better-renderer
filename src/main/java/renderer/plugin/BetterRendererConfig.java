@@ -37,11 +37,6 @@ public interface BetterRendererConfig extends Config {
         return 10;
     }
 
-    @ConfigItem(keyName = "offThreadRendering", name = "Off-thread rendering", description = "If enabled, world will be rendered on a separate thread", hidden = true)
-    default boolean offThreadRendering() { // todo: broken
-        return true;
-    }
-
     @ConfigItem(keyName = "roofRemovalRadius", name = "Roof removal radius", description = "Roofs closer than this value will be removed")
     @Range(max = 100)
     default int roofRemovalRadius() {

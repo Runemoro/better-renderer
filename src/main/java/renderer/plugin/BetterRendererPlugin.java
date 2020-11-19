@@ -1,6 +1,5 @@
 package renderer.plugin;
 
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.inject.Provides;
 import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
@@ -30,21 +29,19 @@ import renderer.util.Colors;
 import renderer.util.Util;
 
 import javax.inject.Inject;
+import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
@@ -80,9 +77,6 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     private int width = -1;
     private int height = -1;
 
-    private boolean executorInitialized = false;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private Future<?> frameFuture;
     private Thread initThread;
     private long context;
     private InterfaceRenderer interfaceRenderer;
@@ -179,7 +173,13 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             throw new RuntimeException(e);
         }
 
-        attachCanvas();
+        try {
+            platformCanvas.lock();
+            platformCanvas.makeCurrent(context);
+        } catch (AWTException e) {
+            throw new RuntimeException(e);
+        }
+
         createCapabilities();
         GlUtil.enableThrowOnError();
 
@@ -196,8 +196,6 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-
-        detachCanvas();
     }
 
     @Override
@@ -235,10 +233,9 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             depthRenderbuffer = -1;
             width = -1;
             height = -1;
-            executorInitialized = false;
-            frameFuture = null;
             renderer = null;
             dynamicBuffer = null;
+            context = 0;
 
             client.resizeCanvas();
         });
@@ -332,74 +329,38 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     @Override
     public void draw() {
         try {
-            if (hasFrame) {
-                finishFrame();
+            width = client.getCanvas().getWidth();
+            height = client.getCanvas().getHeight();
+
+            if (platformCanvas instanceof PlatformWin32GLCanvas) { // dpi-aware height
+                RECT rect = RECT.calloc();
+                User32.GetWindowRect(((PlatformWin32GLCanvas) platformCanvas).hwnd, rect);
+                width = rect.right() - rect.left();
+                height = rect.bottom() - rect.top();
+                rect.free();
             }
 
-            startFrame();
-            hasFrame = true;
+            updateRenderSettings();
+            updateFramebuffer();
+            renderWorld(width, height, dynamicBuffer);
+            dynamicBuffer = new WorldRenderer(renderer.world);
+            drawInterface();
+            platformCanvas.swapBuffers();
+            drawManager.processDrawComplete(this::screenshot);
+            framerateTracker.nextFrame();
+
+            int error = glGetError();
+
+            if (error != 0) {
+                throw new IllegalStateException("0x" + Integer.toHexString(error));
+            }
         } catch (Throwable t) {
             handleCrash(t);
         }
     }
 
-    private void finishFrame() {
-        if (config.offThreadRendering() && Platform.get() == Platform.WINDOWS) {
-            if (frameFuture != null) {
-                try {
-                    frameFuture.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new UncheckedExecutionException(e);
-                }
-
-                attachCanvas();
-            } else {
-                attachCanvas();
-                renderWorld(width, height, dynamicBuffer);
-            }
-        } else {
-            attachCanvas();
-            renderWorld(width, height, dynamicBuffer);
-        }
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-
-        drawInterface();
-        updateWindow();
-        drawManager.processDrawComplete(this::screenshot);
-        framerateTracker.nextFrame();
-
-        int err = glGetError();
-
-        if (err != 0) {
-            throw new IllegalStateException("0x" + Integer.toHexString(err));
-        }
-
-        detachCanvas();
-    }
-
-    private void startFrame() { // todo
-        width = client.getCanvas().getWidth();
-        height = client.getCanvas().getHeight();
-
-        if (platformCanvas instanceof PlatformWin32GLCanvas) { // dpi-aware height
-            RECT rect = RECT.calloc();
-            User32.GetWindowRect(((PlatformWin32GLCanvas) platformCanvas).hwnd, rect);
-            width = rect.right() - rect.left();
-            height = rect.bottom() - rect.top();
-            rect.free();
-        }
-
-        // Create or update the FBO
-        attachCanvas();
-        updateFramebuffer();
-        detachCanvas();
-
-        if (client.getLocalPlayer() != null && Math.abs(client.getBaseX() + client.getCameraX() / 128.) > 1) { // ???
+    public void updateRenderSettings() {
+        if (client.getLocalPlayer() != null && Math.abs(client.getBaseX() + client.getCameraX() / 128.) > 1) {
             // Update renderer settings
             double cameraX = client.getBaseX() + client.getCameraX() / 128.;
             double cameraY = client.getBaseY() + client.getCameraY() / 128.;
@@ -432,24 +393,6 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
             renderer.world.updateRoofs(p.getX(), p.getY(), p.getPlane(), config.roofRemovalRadius());
             renderer.chunkScheduler.setRoofsRemoved(renderer.world.roofsRemoved, renderer.world.roofRemovalPlane);
         }
-
-        // Submit frame render task to the executor
-        WorldRenderer localDynamic = dynamicBuffer;
-
-        dynamicBuffer = new WorldRenderer(renderer.world);
-
-        if (config.offThreadRendering() && Platform.get() == Platform.WINDOWS) {
-            frameFuture = executor.submit(() -> {
-                attachCanvas();
-                if (!executorInitialized) {
-                    createCapabilities();
-                    executorInitialized = true;
-                }
-
-                renderWorld(width, height, localDynamic);
-                detachCanvas();
-            });
-        }
     }
 
     private void renderWorld(int width, int height, WorldRenderer dynamic) {
@@ -459,6 +402,11 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
 
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         renderer.draw(width, height, dynamic);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     }
 
     private Vector3d getActorPosition(Actor player) {
@@ -616,34 +564,19 @@ public class BetterRendererPlugin extends Plugin implements DrawCallbacks {
     private void handleCrash(Throwable t) {
         t.printStackTrace();
         try {
-            pluginManager.setPluginEnabled(this, false);
-            pluginManager.stopPlugin(this);
-        } catch (PluginInstantiationException e) {
-            RuntimeException e2 = new RuntimeException(e);
-            e2.addSuppressed(t);
-            throw e2;
+            SwingUtilities.invokeAndWait(() -> {
+                try {
+                    pluginManager.setPluginEnabled(this, false);
+                    pluginManager.stopPlugin(this);
+                } catch (PluginInstantiationException e) {
+                    RuntimeException e2 = new RuntimeException(e);
+                    e2.addSuppressed(t);
+                    throw e2;
+                }
+            });
+        } catch (InterruptedException | InvocationTargetException e) {
+            e.addSuppressed(t);
+            throw new RuntimeException(e);
         }
-    }
-
-    private void attachCanvas() {
-        try {
-            platformCanvas.lock();
-            platformCanvas.makeCurrent(context);
-        } catch (AWTException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void detachCanvas() {
-        try {
-            platformCanvas.makeCurrent(0);
-            platformCanvas.unlock();
-        } catch (AWTException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void updateWindow() {
-        platformCanvas.swapBuffers();
     }
 }

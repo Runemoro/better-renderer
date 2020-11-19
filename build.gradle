@@ -5,7 +5,6 @@ plugins {
 repositories {
     mavenCentral()
     maven { url = 'https://repo.runelite.net' }
-//    maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
 }
 
 def runeLiteVersion = '1.6.30'
@@ -48,7 +47,6 @@ dependencies {
     implementation "org.lwjgl:lwjgl-glfw:3.2.3:natives-macos"
 
     implementation 'org.lwjgl:lwjgl-jawt:3.2.3'
-//    implementation "org.lwjglx:lwjgl3-awt:0.1.8-SNAPSHOT"
     implementation files('lib/lwjgl3-awt-0.1.8-SNAPSHOT.jar')
 
     implementation "it.unimi.dsi:fastutil:8.3.0"
@@ -57,7 +55,7 @@ dependencies {
 }
 
 group = 'betterrenderer'
-version = '1.6'
+version = '1.8'
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
@@ -77,8 +75,3 @@ try {
 } catch (MissingMethodException ignored) {
     // ShadowJar plugin missing
 }
-
-
-
-
-
